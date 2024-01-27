@@ -4,27 +4,49 @@ import lombok.extern.slf4j.Slf4j;
 import org.ecos.logic.dataaccesssqllite.model.Student;
 
 import java.sql.*;
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 
+@SuppressWarnings("CallToPrintStackTrace")
 @Slf4j
 public class Main {
     private static Connection connection;
 
-    public static void main(String[] args) throws SQLException, ClassNotFoundException {
-        connection = openConnection();
+    public static void main(String[] args)  {
+        try {
+            connection = openConnection();
 
-        String name = "a";
-        List<Student> studentList = getBy(name);
-        System.out.println(studentList);
-        System.out.println(studentList.size());
+            String name = "john";
+            List<Student> studentList = getBy(name);
+            System.out.println(studentList);
+            System.out.println(studentList.size());
+            insertInClass(new Student(54, "john", "doe", 180, 24));
+            studentList = getBy(name);
+            System.out.println(studentList);
+            System.out.println(studentList.size());
 
-        closeConnection(connection);
+        } catch (ClassNotFoundException |SQLException e) {
+            System.out.println("There's a problem trying to open the connection or trying to invoke an SQL execution");
+            e.printStackTrace();
+        }finally {
+            try {
+                closeConnection(connection);
+            } catch (SQLException e) {
+                System.out.println("There's a problem trying to close the connection");
+                e.printStackTrace();
+            }
+        }
+
+
 
     }
 
-    private static List<Student> getBy(String name) {
+    private static Connection openConnection() throws ClassNotFoundException, SQLException {
+        Class.forName("org.sqlite.JDBC");
+        return DriverManager.getConnection("jdbc:sqlite::resource:instituto.sqlite");
+    }
+
+    private static List<Student> getBy(String name) throws SQLException {
         List<Student> result = new ArrayList<>();
 
         try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT codigo,nombre,apellidos,altura,aula from alumnos WHERE nombre like ?;")) {
@@ -38,16 +60,22 @@ public class Main {
                     resultSet.getInt("aula"))
                 );
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
         }
 
         return result;
     }
 
-    private static Connection openConnection() throws ClassNotFoundException, SQLException {
-        Class.forName("org.sqlite.JDBC");
-        return DriverManager.getConnection("jdbc:sqlite::resource:instituto.sqlite");
+    private static void insertInClass(Student student) throws SQLException {
+        try (PreparedStatement preparedStatement = connection.prepareStatement("Insert into alumnos (nombre, apellidos, altura, aula) values (?,?,?,?);")) {
+            preparedStatement.setString(1, student.getName());
+            preparedStatement.setString(2, student.getLastname());
+            preparedStatement.setInt(3, student.getHeight());
+            preparedStatement.setInt(4, student.getClassId());
+
+            preparedStatement.executeUpdate();
+
+        }
+
     }
 
     private static void closeConnection(Connection connection) throws SQLException {
